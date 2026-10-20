@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "B008",  # FastAPI Depends in function parameter defaults
+    "E501",  # Line length
+    "F403",  # Star imports in alembic env
+    "F405",  # Star import usage
+    "UP006",
+    "UP035"
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["backend/tests"]
