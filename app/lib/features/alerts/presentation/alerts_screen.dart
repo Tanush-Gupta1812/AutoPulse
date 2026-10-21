@@ -117,7 +117,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.check_circle_outline, size: 54, color: AppTokens.statusHealthy),
+                          const Icon(Icons.check_circle_outline, size: 54, color: AppTokens.statusHealthy),
                           const SizedBox(height: 12),
                           Text('No active alerts in this category', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600)),
                         ],
@@ -195,16 +195,18 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                if (isCrit) ...[
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      minimumSize: const Size(120, 36),
-                                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                                    ),
-                                    onPressed: () => context.go('/service'),
-                                    child: const Text('Book Service', style: TextStyle(fontSize: 12)),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.analytics_outlined, size: 14),
+                                  style: ElevatedButton.styleFrom(
+                                    minimumSize: const Size(140, 36),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
                                   ),
-                                ],
+                                  onPressed: () {
+                                    final compName = (alert['component_name'] as String? ?? 'Battery').toLowerCase();
+                                    context.go('/component/$compName');
+                                  },
+                                  label: const Text('View Diagnostic', style: TextStyle(fontSize: 12)),
+                                ),
                               ],
                             ),
                           ],

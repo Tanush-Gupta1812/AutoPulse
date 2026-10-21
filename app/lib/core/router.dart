@@ -6,7 +6,6 @@ import 'package:app/features/home/presentation/home_screen.dart';
 import 'package:app/features/telemetry/presentation/telemetry_screen.dart';
 import 'package:app/features/component_detail/presentation/component_detail_screen.dart';
 import 'package:app/features/alerts/presentation/alerts_screen.dart';
-import 'package:app/features/service/presentation/service_screen.dart';
 import 'package:app/features/plans/presentation/plans_screen.dart';
 import 'package:app/features/comparison/presentation/comparison_screen.dart';
 import 'package:app/features/fleet/presentation/fleet_screen.dart';
@@ -36,7 +35,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/service',
-      builder: (context, state) => const ServiceScreen(),
+      redirect: (context, state) => '/home',
     ),
     GoRoute(
       path: '/plans',

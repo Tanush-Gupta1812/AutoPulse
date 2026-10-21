@@ -146,9 +146,12 @@ async def get_component_detail(car_id: str, component_name: str, db: AsyncSessio
     )
 
     # Match normalized component name
+    target = component_name.lower().replace("_", " ").strip()
+    words = [w for w in target.split() if w not in ("&", "and", "system")]
     matched = None
     for c in summary.components:
-        if component_name.lower() in c.component_name.lower():
+        c_lower = c.component_name.lower()
+        if target in c_lower or c_lower in target or any(w in c_lower for w in words):
             matched = c
             break
 

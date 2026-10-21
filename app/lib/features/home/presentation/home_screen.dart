@@ -13,7 +13,7 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
   try {
     return await api.getVehicleHealth(carId);
   } catch (e) {
-    // Fallback data matching Swift 2016 Stitch specification if server temporarily busy
+    // Fallback data matching Swift 2016 specification
     return {
       'car_id': carId,
       'overall_health_score': 68,
@@ -24,49 +24,57 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
         'status': 'Warning',
         'days_to_failure': 9,
         'confidence_pct': 91,
-        'primary_reason': 'Idle voltage dropped 0.6V over 12 days (Resting: 11.8V, Crank dip: 9.2V)',
+        'primary_reason': 'Idle resting voltage dropped 0.6V over 12 days (Resting: 11.8V, Crank dip: 9.2V). Cold start failure projected in ~9 days.',
         'prevented_cost_inr': 4500,
         'diagnostic_evidence': [
           'Resting voltage: 11.8V (Normal > 12.4V)',
-          'Cold morning crank sag: 9.2V',
-          'Internal cell resistance: +38% drift'
+          'Cold morning crank sag: 9.2V (Safety limit: 10.2V)',
+          'Internal cell resistance: +38% impedance drift'
         ]
       },
       'components': [
         {
+          'component_name': 'Battery & Electrical',
+          'health_score': 54,
+          'status': 'Warning',
+          'days_to_failure': 9,
+          'confidence_pct': 91,
+          'primary_reason': 'Idle voltage 11.8V, crank dip 9.2V'
+        },
+        {
           'component_name': 'Alternator & Charging',
-          'health_score': 88,
+          'health_score': 93,
           'status': 'OK',
           'days_to_failure': null,
           'confidence_pct': 95,
-          'primary_reason': '14.1V charging bus stable'
+          'primary_reason': '14.2V charging bus stable'
         },
         {
           'component_name': 'Cooling System',
-          'health_score': 79,
-          'status': 'Watch',
-          'days_to_failure': 18,
-          'confidence_pct': 86,
-          'primary_reason': 'Operating temp 96°C peak'
+          'health_score': 89,
+          'status': 'OK',
+          'days_to_failure': null,
+          'confidence_pct': 94,
+          'primary_reason': 'Operating temp 90.5°C nominal'
         },
         {
           'component_name': 'O2 Sensor & Emissions',
-          'health_score': 82,
+          'health_score': 91,
           'status': 'OK',
           'days_to_failure': null,
           'confidence_pct': 93,
-          'primary_reason': 'Lambda 1.01 nominal'
+          'primary_reason': 'Lambda 1.01 stoichiometric'
         },
         {
           'component_name': 'Spark Plugs & Ignition',
-          'health_score': 74,
-          'status': 'Watch',
-          'days_to_failure': 21,
-          'confidence_pct': 85,
-          'primary_reason': 'Cyl 2 micro-misfire trend'
+          'health_score': 86,
+          'status': 'OK',
+          'days_to_failure': null,
+          'confidence_pct': 92,
+          'primary_reason': 'Zero combustion misfires logged'
         }
       ],
-      'active_alerts_count': 2,
+      'active_alerts_count': 1,
       'total_savings_inr': 22500
     };
   }
@@ -229,14 +237,34 @@ class HomeScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.tune, size: 20),
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => const DemoPanelDialog(),
-                          );
-                        },
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+                          border: Border.all(
+                            color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.2),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.sensors,
+                              size: 13,
+                              color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Live Telemetry',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -357,7 +385,7 @@ class HomeScreen extends ConsumerWidget {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.trending_down, size: 16, color: AppTokens.statusWatch),
+                                  const Icon(Icons.trending_down, size: 16, color: AppTokens.statusWatch),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
@@ -411,7 +439,9 @@ class HomeScreen extends ConsumerWidget {
                                           const SizedBox(width: 5),
                                           Flexible(
                                             child: Text(
-                                              'Battery fails in ~${urgent['days_to_failure'] ?? 9} days',
+                                              urgent['days_to_failure'] != null
+                                                  ? '${urgent['component_name'] ?? 'Component'} risk in ~${urgent['days_to_failure']} days'
+                                                  : '${urgent['component_name'] ?? 'Component'} requires attention',
                                               overflow: TextOverflow.ellipsis,
                                               style: GoogleFonts.outfit(
                                                 fontSize: 12,
@@ -450,22 +480,16 @@ class HomeScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 14),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: ElevatedButton(
-                                        onPressed: () => context.go('/service'),
-                                        child: const Text('Book Service'),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        onPressed: () => context.go('/component/battery'),
-                                        child: const Text('Diagnostics'),
-                                      ),
-                                    ),
-                                  ],
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.analytics_outlined, size: 18),
+                                    label: const Text('View Detailed Subsystem Diagnostics'),
+                                    onPressed: () {
+                                      final comp = (urgent['component_name'] as String? ?? 'battery').toLowerCase();
+                                      context.go('/component/$comp');
+                                    },
+                                  ),
                                 ),
                               ],
                             ),

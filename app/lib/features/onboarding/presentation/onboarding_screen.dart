@@ -32,7 +32,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       'step': '03',
       'title': 'Pre-empt Breakdown & Save ₹',
-      'subtitle': 'Receive plain-English forecasts like "Battery fails in ~9 days" before roadside disaster strikes. Book partner garages at exclusive pre-emptive rates and avoid towing fees.',
+      'subtitle': 'Receive plain-English forecasts with statistical proof before roadside disaster strikes. Track wear trajectories in real-time and avoid expensive emergency highway towing.',
       'icon': Icons.health_and_safety,
       'badge': '₹4,500+ Avg Savings',
     },
