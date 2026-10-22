@@ -15,8 +15,8 @@ final alertsListProvider = FutureProvider.autoDispose.family<List<dynamic>, Stri
       {
         'id': 1,
         'car_id': carId,
-        'title': 'Battery Failure Imminent in ~9 Days',
-        'message': 'Idle resting voltage dropped 0.6V across 12 days to 11.8V. Morning crank sag reached 9.2V. Pre-emptive battery replacement recommended.',
+        'title': 'Battery Terminal Cranking Sag Observed',
+        'message': 'Resting voltage decaying at 0.05V/day. Cold crank transient dipped to 9.2V (OEM safe threshold: 10.2V). Wear horizon estimated at ~9 days.',
         'severity': 'critical',
         'component_name': 'Battery & Electrical',
         'is_read': false,
@@ -25,8 +25,8 @@ final alertsListProvider = FutureProvider.autoDispose.family<List<dynamic>, Stri
       {
         'id': 2,
         'car_id': carId,
-        'title': 'Sub-12V Cranking Transient Warning',
-        'message': 'Ignition cold crank transient dipped to 9.2V (Minimum safety margin: 10.2V).',
+        'title': 'Sub-12V Cranking Transient Logged',
+        'message': 'Ignition start transient dip below 10V detected across 3 consecutive morning cycles.',
         'severity': 'warning',
         'component_name': 'Battery & Electrical',
         'is_read': true,
@@ -35,8 +35,8 @@ final alertsListProvider = FutureProvider.autoDispose.family<List<dynamic>, Stri
       {
         'id': 3,
         'car_id': carId,
-        'title': 'Cooling Fan Cycle Optimization',
-        'message': 'Secondary radiator fan engaged for 14 minutes continuous at idle.',
+        'title': 'Cooling System Thermal Window Stable',
+        'message': 'ECT stabilized at 90.5°C with nominal radiator fan cycle. No boilover risk.',
         'severity': 'watch',
         'component_name': 'Cooling System',
         'is_read': true,
@@ -65,14 +65,15 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Diagnostics & Alerts', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+        title: Text('Diagnostics & Alerts', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 17)),
       ),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Filter Pills
+            // Minimal Category Filter Strip
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -80,18 +81,32 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                     final isSelected = _selectedFilter == filter;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8.0),
-                      child: FilterChip(
-                        label: Text(filter),
-                        selected: isSelected,
-                        onSelected: (val) => setState(() => _selectedFilter = filter),
-                        selectedColor: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.2),
-                        checkmarkColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                        labelStyle: GoogleFonts.outfit(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected
-                              ? (isDark ? AppTokens.darkAccent : AppTokens.lightAccent)
-                              : (isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary),
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedFilter = filter),
+                        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary)
+                                : (isDark ? AppTokens.darkSurface : AppTokens.lightSurface),
+                            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.transparent
+                                  : (isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
+                            ),
+                          ),
+                          child: Text(
+                            filter,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected
+                                  ? (isDark ? AppTokens.darkBackground : AppTokens.lightSurface)
+                                  : (isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary),
+                            ),
+                          ),
                         ),
                       ),
                     );
@@ -99,17 +114,18 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 ),
               ),
             ),
-            const Divider(height: 1),
 
-            // Alerts Feed
+            const SizedBox(height: 8),
+
+            // Alert Items Feed
             Expanded(
               child: alertsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                error: (e, _) => Center(child: Text('Error loading alerts: $e')),
                 data: (alerts) {
                   final filtered = alerts.where((a) {
                     if (_selectedFilter == 'ALL') return true;
-                    return (a['severity'] as String).toUpperCase() == _selectedFilter;
+                    return (a['severity'] as String? ?? '').toUpperCase() == _selectedFilter;
                   }).toList();
 
                   if (filtered.isEmpty) {
@@ -117,31 +133,49 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.check_circle_outline, size: 54, color: AppTokens.statusHealthy),
+                          Icon(
+                            Icons.check_circle_outline,
+                            size: 40,
+                            color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+                          ),
                           const SizedBox(height: 12),
-                          Text('No active alerts in this category', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600)),
+                          Text(
+                            'No active alerts in this category',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+                            ),
+                          ),
                         ],
                       ),
                     );
                   }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final alert = filtered[index] as Map<String, dynamic>;
-                      final severity = (alert['severity'] as String? ?? 'info').toLowerCase();
-                      final isCrit = severity == 'critical';
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, idx) {
+                      final alert = filtered[idx] as Map<String, dynamic>;
+                      final sev = (alert['severity'] as String? ?? 'info').toLowerCase();
+                      final isCrit = sev == 'critical';
+                      final isWarn = sev == 'warning';
+                      final dotColor = isCrit
+                          ? AppTokens.statusCritical
+                          : isWarn
+                              ? AppTokens.statusWarning
+                              : AppTokens.statusHealthy;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
                           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                           border: Border.all(
-                            color: isCrit ? AppTokens.statusCritical.withOpacity(0.5) : (isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
-                            width: isCrit ? 1.5 : 1.0,
+                            color: isCrit
+                                ? AppTokens.statusCritical.withOpacity(0.35)
+                                : (isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
                           ),
                         ),
                         child: Column(
@@ -150,62 +184,88 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: AppTokens.getStatusColor(severity).withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                                  ),
-                                  child: Text(
-                                    severity.toUpperCase(),
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTokens.getStatusColor(severity),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: dotColor,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      (alert['component_name'] as String? ?? 'Subsystem').toUpperCase(),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.8,
+                                        color: dotColor,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 Text(
-                                  alert['component_name'] as String? ?? 'Vehicle Subsystem',
+                                  sev.toUpperCase(),
                                   style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             Text(
-                              alert['title'] as String? ?? 'Fault Detected',
+                              alert['title'] as String? ?? 'Diagnostic Alert',
                               style: GoogleFonts.outfit(
-                                fontSize: 16,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w700,
+                                letterSpacing: -0.2,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 4),
                             Text(
                               alert['message'] as String? ?? '',
                               style: GoogleFonts.inter(
-                                fontSize: 13,
+                                fontSize: 12,
                                 height: 1.4,
-                                color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+                                color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.analytics_outlined, size: 14),
-                                  style: ElevatedButton.styleFrom(
-                                    minimumSize: const Size(140, 36),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                                  ),
-                                  onPressed: () {
+                                InkWell(
+                                  onTap: () {
                                     final compName = (alert['component_name'] as String? ?? 'Battery').toLowerCase();
                                     context.go('/component/$compName');
                                   },
-                                  label: const Text('View Diagnostic', style: TextStyle(fontSize: 12)),
+                                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Inspect Diagnostics',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.arrow_forward,
+                                          size: 12,
+                                          color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

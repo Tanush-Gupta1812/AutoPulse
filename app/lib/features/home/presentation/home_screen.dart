@@ -1,19 +1,17 @@
-import 'dart:math' as math;
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:app/theme/app_tokens.dart';
 import 'package:app/core/api_client.dart';
 import 'package:app/core/websocket_client.dart';
-import 'package:app/features/settings/presentation/demo_panel_dialog.dart';
 
 final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, carId) async {
   final api = ref.watch(apiServiceProvider);
   try {
     return await api.getVehicleHealth(carId);
   } catch (e) {
-    // Fallback data matching Swift 2016 specification
+    // Realistic fallback data matching vehicle baseline
     return {
       'car_id': carId,
       'overall_health_score': 68,
@@ -24,12 +22,12 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
         'status': 'Warning',
         'days_to_failure': 9,
         'confidence_pct': 91,
-        'primary_reason': 'Idle resting voltage dropped 0.6V over 12 days (Resting: 11.8V, Crank dip: 9.2V). Cold start failure projected in ~9 days.',
+        'primary_reason': 'Resting voltage 11.8V with 9.2V morning cold crank sag.',
         'prevented_cost_inr': 4500,
         'diagnostic_evidence': [
           'Resting voltage: 11.8V (Normal > 12.4V)',
-          'Cold morning crank sag: 9.2V (Safety limit: 10.2V)',
-          'Internal cell resistance: +38% impedance drift'
+          'Cold crank transient: 9.2V (Threshold: 10.2V)',
+          'Cell internal impedance drift: +38%'
         ]
       },
       'components': [
@@ -39,7 +37,8 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
           'status': 'Warning',
           'days_to_failure': 9,
           'confidence_pct': 91,
-          'primary_reason': 'Idle voltage 11.8V, crank dip 9.2V'
+          'metric': '11.8V • 9.2V Crank',
+          'primary_reason': 'Cold start voltage decaying'
         },
         {
           'component_name': 'Alternator & Charging',
@@ -47,7 +46,8 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
           'status': 'OK',
           'days_to_failure': null,
           'confidence_pct': 95,
-          'primary_reason': '14.2V charging bus stable'
+          'metric': '14.2V Charging Rail',
+          'primary_reason': 'Charging rail nominal'
         },
         {
           'component_name': 'Cooling System',
@@ -55,7 +55,8 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
           'status': 'OK',
           'days_to_failure': null,
           'confidence_pct': 94,
-          'primary_reason': 'Operating temp 90.5°C nominal'
+          'metric': '90.5°C Normal ECT',
+          'primary_reason': 'Thermal window stable'
         },
         {
           'component_name': 'O2 Sensor & Emissions',
@@ -63,7 +64,8 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
           'status': 'OK',
           'days_to_failure': null,
           'confidence_pct': 93,
-          'primary_reason': 'Lambda 1.01 stoichiometric'
+          'metric': 'Lambda 1.01 Nominal',
+          'primary_reason': 'Stoichiometric fuel mix'
         },
         {
           'component_name': 'Spark Plugs & Ignition',
@@ -71,7 +73,8 @@ final vehicleHealthProvider = FutureProvider.autoDispose.family<Map<String, dyna
           'status': 'OK',
           'days_to_failure': null,
           'confidence_pct': 92,
-          'primary_reason': 'Zero combustion misfires logged'
+          'metric': '0 Misfires Logged',
+          'primary_reason': 'Uniform cylinder dwell'
         }
       ],
       'active_alerts_count': 1,
@@ -91,7 +94,6 @@ class HomeScreen extends ConsumerWidget {
     final healthAsync = ref.watch(vehicleHealthProvider(carId));
     final liveStreamAsync = ref.watch(telemetryWebSocketProvider(carId));
 
-    // Live PIDs with fallback
     final liveData = liveStreamAsync.value ?? {
       'battery_voltage': 11.8,
       'coolant_temp': 92.0,
@@ -102,219 +104,133 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
+          color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+          backgroundColor: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
           onRefresh: () async => ref.refresh(vehicleHealthProvider(carId)),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Top Header with Brand & Secret Long-Press Demo Trigger
+                // 1. Minimal Header (Clean Brand + Live Status)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: GestureDetector(
-                        onLongPress: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => const DemoPanelDialog(),
-                          );
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(7),
-                              decoration: BoxDecoration(
-                                color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                              ),
-                              child: Icon(
-                                Icons.electric_bolt,
-                                color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                'AutoPulse',
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // OBD-II Live Status Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppTokens.statusHealthy.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                        border: Border.all(color: AppTokens.statusHealthy.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: AppTokens.statusHealthy,
-                              shape: BoxShape.circle,
+                          Text(
+                            'AUTOPULSE',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2.0,
+                              color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(height: 2),
                           Text(
-                            'OBD-II Online',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppTokens.statusHealthy,
+                            carId == 'swift_2016'
+                                ? 'Maruti Swift 2016 VXi'
+                                : carId.replaceAll('_', ' ').toUpperCase(),
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.3,
                             ),
                           ),
                         ],
                       ),
                     ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0x1A10B981) : const Color(0x1510B981),
+                            borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+                            border: Border.all(color: AppTokens.statusHealthy.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: AppTokens.statusHealthy,
+                                  shape: BoxShape.circle,
+                                  ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'BLE 5.0 LIVE',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                  color: AppTokens.statusHealthy,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          icon: Icon(
+                            Icons.tune_rounded,
+                            size: 20,
+                            color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+                          ),
+                          tooltip: 'Settings',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => context.go('/settings'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 14),
 
-                // 2. Active Vehicle Badge
+                const SizedBox(height: 18),
+
+                // 2. Minimalist Telemetry Ticker Strip (Hairline Separators)
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                   decoration: BoxDecoration(
                     color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
                     borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                    border: Border.all(
-                      color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
-                    ),
+                    border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                        ),
-                        child: Icon(
-                          Icons.directions_car,
-                          color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              carId == 'swift_2016'
-                                  ? 'Maruti Swift 2016 VXi'
-                                  : carId.replaceAll('_', ' ').toUpperCase(),
-                              style: GoogleFonts.outfit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'DL 3C AP 4821 • 64,280 km • 1.2L K12M Petrol',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                          border: Border.all(
-                            color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.2),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.sensors,
-                              size: 13,
-                              color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Live Telemetry',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildTickerItem('VOLTAGE', '${liveData['battery_voltage'] ?? 11.8}V', (liveData['battery_voltage'] ?? 12.0) < 12.0 ? AppTokens.statusWarning : AppTokens.statusHealthy, isDark),
+                      _buildDivider(isDark),
+                      _buildTickerItem('COOLANT', '${(liveData['coolant_temp'] ?? 92.0).round()}°C', AppTokens.statusHealthy, isDark),
+                      _buildDivider(isDark),
+                      _buildTickerItem('IDLE RPM', '${(liveData['rpm'] ?? 780.0).round()}', isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary, isDark),
+                      _buildDivider(isDark),
+                      _buildTickerItem('LOAD', '${(liveData['engine_load'] ?? 22.0).round()}%', isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary, isDark),
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
 
-                // 3. Glanceable Quick Telemetry Row
-                Row(
-                  children: [
-                    _buildQuickMetric(
-                      context,
-                      label: 'Battery',
-                      value: '${liveData['battery_voltage'] ?? 11.8} V',
-                      color: (liveData['battery_voltage'] ?? 12.0) < 12.0
-                          ? AppTokens.statusCritical
-                          : AppTokens.statusHealthy,
-                      icon: Icons.battery_alert,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildQuickMetric(
-                      context,
-                      label: 'Coolant',
-                      value: '${(liveData['coolant_temp'] ?? 92.0).round()}°C',
-                      color: AppTokens.statusHealthy,
-                      icon: Icons.thermostat,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildQuickMetric(
-                      context,
-                      label: 'Idle RPM',
-                      value: '${(liveData['rpm'] ?? 780.0).round()}',
-                      color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
-                      icon: Icons.speed,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildQuickMetric(
-                      context,
-                      label: 'Load',
-                      value: '${(liveData['engine_load'] ?? 22.0).round()}%',
-                      color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
-                      icon: Icons.compress,
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 18),
 
-                // 4. Centerpiece Vehicle Health Ring Gauge
+                // 3. Central Vehicle Health Horizon
                 healthAsync.when(
-                  loading: () => const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())),
-                  error: (e, _) => Text('Failed to load health: $e'),
+                  loading: () => Container(
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
+                      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                      border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
+                    ),
+                    child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  error: (e, _) => Text('Error loading vehicle status: $e'),
                   data: (health) {
                     final score = health['overall_health_score'] as int? ?? 68;
                     final urgent = health['urgent_forecast'] as Map<String, dynamic>?;
@@ -323,287 +239,350 @@ class HomeScreen extends ConsumerWidget {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Overall Health Gauge Card
+                        // Health Horizon Card
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
+                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
                             borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                            border: Border.all(
-                              color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
-                            ),
+                            border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
                           ),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'OVERALL VEHICLE HEALTH',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.2,
-                                  color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              SizedBox(
-                                width: 160,
-                                height: 160,
-                                child: CustomPaint(
-                                  painter: HealthRingPainter(
-                                    score: score,
-                                    scoreColor: AppTokens.getScoreColor(score),
-                                    backgroundColor: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
-                                  ),
-                                  child: Center(
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          '$score',
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 48,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTokens.getScoreColor(score),
-                                          ),
+                                          'VEHICLE HEALTH INDEX',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 1.2,
+                                          color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
                                         ),
-                                        Text(
-                                          '/100',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                                        textBaseline: TextBaseline.alphabetic,
+                                        children: [
+                                          Text(
+                                            '$score',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 48,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: -1.5,
+                                              color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+                                            ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '/100',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 14),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.trending_down, size: 16, color: AppTokens.statusWatch),
-                                  const SizedBox(width: 4),
-                                  Flexible(
+                                const SizedBox(width: 8),
+                                Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: (score >= 80 ? AppTokens.statusHealthy : AppTokens.statusWatch).withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                                    ),
                                     child: Text(
-                                      'Watch / Trend Drift (-4 pts in 14d)',
-                                      overflow: TextOverflow.ellipsis,
+                                      score >= 80 ? 'OPTIMAL' : 'WATCH',
                                       style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTokens.statusWatch,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.5,
+                                        color: score >= 80 ? AppTokens.statusHealthy : AppTokens.statusWatch,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 16),
+
+                              // Minimalist 10-Segment Horizon Indicator
+                              Row(
+                                children: List.generate(10, (idx) {
+                                  final segmentThreshold = (idx + 1) * 10;
+                                  final isActive = score >= segmentThreshold;
+                                  final isWarningSegment = idx >= 6 && idx <= 8;
+
+                                  Color barColor;
+                                  if (!isActive) {
+                                    barColor = isDark ? const Color(0x14FFFFFF) : const Color(0x14000000);
+                                  } else if (score < 70 && isWarningSegment) {
+                                    barColor = AppTokens.statusWatch;
+                                  } else {
+                                    barColor = AppTokens.getScoreColor(score);
+                                  }
+
+                                  return Expanded(
+                                    child: Container(
+                                      height: 6,
+                                      margin: EdgeInsets.only(right: idx == 9 ? 0 : 4),
+                                      decoration: BoxDecoration(
+                                        color: barColor,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                              const SizedBox(height: 14),
+
+                              Text(
+                                'DL 3C AP 4821 • 64,280 km • Telemetry baseline calibrated from 21 cold starts',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+                                ),
+                              ),
                             ],
                           ),
                         ),
+
                         const SizedBox(height: 16),
 
-                        // 5. Urgent Forecast Hero Card
-                        if (urgent != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(18),
-                            decoration: BoxDecoration(
-                              color: (isDark ? AppTokens.darkSurface : AppTokens.lightSurface),
-                              borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                              border: Border.all(
-                                color: AppTokens.statusWarning.withOpacity(0.5),
-                                width: 1.5,
+                        // 4. Innovative Urgent Forecast Card (Quiet, Architectural, Minimal)
+                        if (urgent != null && urgent['days_to_failure'] != null) ...[
+                          InkWell(
+                            onTap: () {
+                              final comp = (urgent['component_name'] as String? ?? 'battery').toLowerCase();
+                              context.go('/component/$comp');
+                            },
+                            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                            child: Container(
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
+                                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                                border: Border.all(
+                                  color: AppTokens.statusWarning.withOpacity(0.4),
+                                  width: 1.0,
+                                ),
                               ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 6,
-                                  alignment: WrapAlignment.spaceBetween,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: AppTokens.statusWarning.withOpacity(0.15),
-                                        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.warning_amber_rounded, size: 14, color: AppTokens.statusWarning),
-                                          const SizedBox(width: 5),
-                                          Flexible(
-                                            child: Text(
-                                              urgent['days_to_failure'] != null
-                                                  ? '${urgent['component_name'] ?? 'Component'} risk in ~${urgent['days_to_failure']} days'
-                                                  : '${urgent['component_name'] ?? 'Component'} requires attention',
-                                              overflow: TextOverflow.ellipsis,
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 7,
+                                              height: 7,
+                                              decoration: const BoxDecoration(
                                                 color: AppTokens.statusWarning,
+                                                shape: BoxShape.circle,
                                               ),
                                             ),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                'ATTENTION HORIZON',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 1.0,
+                                                  color: AppTokens.statusWarning,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        '~${urgent['days_to_failure']} Days',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTokens.statusWarning,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    urgent['component_name'] as String? ?? 'Component',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    urgent['primary_reason'] as String? ?? 'Voltage decaying under starter load.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Confidence ${urgent['confidence_pct'] ?? 91}%',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+                                          ),
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'View Diagnostics',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_forward,
+                                            size: 13,
+                                            color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                                      ),
-                                      child: Text(
-                                        'Confidence ${urgent['confidence_pct'] ?? 91}%',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  urgent['primary_reason'] as String? ?? 'Battery voltage decaying rapidly under load.',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    height: 1.4,
-                                    fontWeight: FontWeight.w500,
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 14),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(Icons.analytics_outlined, size: 18),
-                                    label: const Text('View Detailed Subsystem Diagnostics'),
-                                    onPressed: () {
-                                      final comp = (urgent['component_name'] as String? ?? 'battery').toLowerCase();
-                                      context.go('/component/$comp');
-                                    },
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
                         ],
 
-                        // 6. Subsystem Diagnostics Grid
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Subsystem Health',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              'Tap for details',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
-                              ),
-                            ),
-                          ],
+                        // 5. Minimalist Subsystem Bento Grid
+                        Text(
+                          'Subsystem Diagnostics',
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        GridView.builder(
+                        const SizedBox(height: 10),
+                        ListView.separated(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 1.45,
-                          ),
                           itemCount: components.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
                           itemBuilder: (context, index) {
                             final comp = components[index] as Map<String, dynamic>;
-                            final name = comp['component_name'] as String? ?? 'Component';
-                            final cScore = comp['health_score'] as int? ?? 80;
-                            final status = comp['status'] as String? ?? 'OK';
+                            final name = comp['component_name'] as String? ?? 'Subsystem';
+                            final cScore = comp['health_score'] as int? ?? 85;
+                            final status = (comp['status'] as String? ?? 'OK').toUpperCase();
+                            final metric = comp['metric'] as String? ?? comp['primary_reason'] as String? ?? '';
+                            final days = comp['days_to_failure'] as int?;
+
+                            final isAttention = days != null || status != 'OK';
+                            final statusColor = isAttention ? AppTokens.statusWarning : AppTokens.statusHealthy;
 
                             return InkWell(
-                              onTap: () => context.go('/component/${name.toLowerCase()}'),
+                              onTap: () {
+                                final normName = name.toLowerCase();
+                                context.go('/component/$normName');
+                              },
                               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                               child: Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 decoration: BoxDecoration(
                                   color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
                                   borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                                   border: Border.all(
-                                    color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
+                                    color: isAttention
+                                        ? AppTokens.statusWarning.withOpacity(0.3)
+                                        : (isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
                                   ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                child: Row(
                                   children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            name.split('&')[0].trim(),
-                                            overflow: TextOverflow.ellipsis,
+                                    Container(
+                                      width: 4,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: statusColor,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
                                             style: GoogleFonts.outfit(
                                               fontWeight: FontWeight.w700,
-                                              fontSize: 13,
+                                              fontSize: 14,
+                                              letterSpacing: -0.2,
                                             ),
                                           ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: AppTokens.getStatusColor(status).withOpacity(0.15),
-                                            borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                                          ),
-                                          child: Text(
-                                            status,
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            metric,
                                             style: GoogleFonts.inter(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppTokens.getStatusColor(status),
+                                              fontSize: 11,
+                                              color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
                                         Text(
                                           '$cScore%',
                                           style: GoogleFonts.outfit(
-                                            fontSize: 22,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.w800,
-                                            color: AppTokens.getScoreColor(cScore),
+                                            color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(2),
-                                          child: LinearProgressIndicator(
-                                            value: cScore / 100.0,
-                                            backgroundColor: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
-                                            valueColor: AlwaysStoppedAnimation(AppTokens.getScoreColor(cScore)),
-                                            minHeight: 4,
+                                        Text(
+                                          days != null ? '~$days days' : 'Nominal',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: statusColor,
                                           ),
                                         ),
                                       ],
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      size: 16,
+                                      color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
                                     ),
                                   ],
                                 ),
@@ -611,7 +590,7 @@ class HomeScreen extends ConsumerWidget {
                             );
                           },
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                       ],
                     );
                   },
@@ -624,105 +603,39 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickMetric(
-    BuildContext context, {
-    required String label,
-    required String value,
-    required Color color,
-    required IconData icon,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
+  Widget _buildTickerItem(String label, String value, Color valueColor, bool isDark) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          border: Border.all(
-            color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
             ),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
 
-class HealthRingPainter extends CustomPainter {
-  final int score;
-  final Color scoreColor;
-  final Color backgroundColor;
-
-  HealthRingPainter({
-    required this.score,
-    required this.scoreColor,
-    required this.backgroundColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - 16) / 2;
-
-    final bgPaint = Paint()
-      ..color = backgroundColor
-      ..strokeWidth = 12
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final progressPaint = Paint()
-      ..color = scoreColor
-      ..strokeWidth = 12
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Draw background track (270 degrees sweep)
-    const startAngle = 0.75 * math.pi;
-    const sweepAngle = 1.5 * math.pi;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false,
-      bgPaint,
+  Widget _buildDivider(bool isDark) {
+    return Container(
+      height: 20,
+      width: 1,
+      color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
     );
-
-    // Draw progress arc
-    final currentSweep = sweepAngle * (score / 100.0);
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      currentSweep,
-      false,
-      progressPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant HealthRingPainter oldDelegate) {
-    return oldDelegate.score != score || oldDelegate.scoreColor != scoreColor;
   }
 }

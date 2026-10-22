@@ -27,15 +27,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _isPinging = true;
       _pingLatencyMs = null;
     });
-    await Future.delayed(const Duration(milliseconds: 650));
+    await Future.delayed(const Duration(milliseconds: 450));
     if (mounted) {
       setState(() {
         _isPinging = false;
-        _pingLatencyMs = 18; // Realistic BLE 5.0 ELM327 command latency
+        _pingLatencyMs = 18;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('OBD-II Dongle Response: 18ms (Optimal)', style: GoogleFonts.inter()),
+          content: Text('OBD-II BLE Response: 18ms (Optimal)', style: GoogleFonts.inter()),
           backgroundColor: AppTokens.statusHealthy,
           duration: const Duration(seconds: 2),
         ),
@@ -49,77 +49,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) {
           return AlertDialog(
-            backgroundColor: isDark ? const Color(0xFF0F1520) : const Color(0xFFF1F5F9),
+            backgroundColor: isDark ? const Color(0xFF11141A) : const Color(0xFFF8FAFC),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               side: BorderSide(
-                color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                width: 1.5,
+                color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
               ),
             ),
             title: Row(
               children: [
-                Icon(Icons.terminal, color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent, size: 22),
+                Icon(Icons.terminal, color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'OBD-II AT Command Diagnostic',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 17),
+                  'OBD-II Command Diagnostics',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
               ],
             ),
-            content: SizedBox(
-              width: 440,
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Direct bus handshake test with AutoPulse ELM327 adapter:',
-                    style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary),
+                    'Direct bus handshake test with ELM327 BLE adapter:',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    height: 180,
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    height: 140,
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF080C12) : const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                      color: isDark ? const Color(0xFF07090C) : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                       border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
                     ),
                     child: _terminalLogs.isEmpty
                         ? Center(
                             child: Text(
-                              'Tap "Run Bus Self-Test" to query adapter status...',
+                              'Tap "Run Self-Test" to query adapter status',
                               style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
-                                fontStyle: FontStyle.italic,
+                                fontSize: 11,
+                                color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
                               ),
                             ),
                           )
                         : ListView.builder(
                             itemCount: _terminalLogs.length,
-                            itemBuilder: (context, idx) {
-                              final log = _terminalLogs[idx];
-                              final isCommand = log.startsWith('>');
-                              final isSuccess = log.contains('OK') || log.contains('41 00');
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2.0),
-                                child: Text(
-                                  log,
-                                  style: GoogleFonts.spaceMono(
-                                    fontSize: 11,
-                                    fontWeight: isCommand ? FontWeight.w700 : FontWeight.w400,
-                                    color: isCommand
-                                        ? (isDark ? AppTokens.darkAccent : AppTokens.lightAccent)
-                                        : isSuccess
-                                            ? AppTokens.statusHealthy
-                                            : (isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary),
-                                  ),
+                            itemBuilder: (c, i) => Padding(
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: Text(
+                                _terminalLogs[i],
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10,
+                                  color: _terminalLogs[i].startsWith('>')
+                                      ? (isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted)
+                                      : AppTokens.statusHealthy,
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           ),
                   ),
                 ],
@@ -132,9 +125,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               ElevatedButton.icon(
                 icon: _isTestingTerminal
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.play_arrow, size: 16),
-                label: const Text('Run Bus Self-Test'),
+                label: const Text('Run Self-Test'),
                 onPressed: _isTestingTerminal
                     ? null
                     : () async {
@@ -143,16 +136,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           _terminalLogs = ['> AT Z (Adapter Reset)'];
                         });
                         setDialogState(() {});
-                        await Future.delayed(const Duration(milliseconds: 300));
+                        await Future.delayed(const Duration(milliseconds: 250));
                         _terminalLogs.add('ELM327 v2.1 AutoPulse Edge OS');
                         _terminalLogs.add('> AT SP 0 (Set Protocol Auto)');
                         setDialogState(() {});
-                        await Future.delayed(const Duration(milliseconds: 300));
-                        _terminalLogs.add('OK (Protocol ISO 15765-4 CAN 500k Locked)');
+                        await Future.delayed(const Duration(milliseconds: 250));
+                        _terminalLogs.add('OK (Protocol ISO 15765-4 CAN Locked)');
                         _terminalLogs.add('> 01 00 (Query Supported PIDs)');
                         setDialogState(() {});
-                        await Future.delayed(const Duration(milliseconds: 300));
-                        _terminalLogs.add('SEARCHING... 41 00 BE 3F B8 11 (28 PIDs Active)');
+                        await Future.delayed(const Duration(milliseconds: 250));
+                        _terminalLogs.add('SEARCHING... 41 00 BE 3F B8 11 (28 Active)');
                         _terminalLogs.add('[Self-Test Complete: All Bus Responses Nominal]');
                         setDialogState(() => _isTestingTerminal = false);
                         setState(() {});
@@ -185,8 +178,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Settings & Diagnostic Hub',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+          'Settings & Diagnostics',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18),
         ),
       ),
       body: SafeArea(
@@ -195,21 +188,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Vehicle & Dongle Edge Hardware Overview Card
+              // 1. Vehicle & Dongle Hardware Status
               _buildVehicleHardwareCard(context, carId, isDark),
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
 
-              // 2. Cockpit Display & Theme (Design Pro Max)
-              _buildSectionHeader('Cockpit Display & Aesthetics', Icons.palette_outlined, isDark),
-              const SizedBox(height: 10),
+              // 2. Display & Unit Preferences
+              _buildSectionTitle('Display & Appearance', isDark),
+              const SizedBox(height: 8),
               _buildAppearanceCard(context, currentThemeMode, isDark),
-              const SizedBox(height: 12),
-              _buildDisplayPreferencesCard(context, unitSystem, screenAwake, isDark),
-              const SizedBox(height: 22),
-
-              // 3. AI Failure Forecasting Engine Calibration
-              _buildSectionHeader('AI Predictive Forecasting Engine', Icons.psychology_outlined, isDark),
               const SizedBox(height: 10),
+              _buildDisplayPreferencesCard(context, unitSystem, screenAwake, isDark),
+              const SizedBox(height: 20),
+
+              // 3. AI Predictive Engine Tuning
+              _buildSectionTitle('AI Predictive Engine', isDark),
+              const SizedBox(height: 8),
               _buildAiEngineCard(
                 context,
                 aiSensitivity: aiSensitivity,
@@ -219,35 +212,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 emissions: emissionsWatchdog,
                 isDark: isDark,
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
 
-              // 4. OBD-II Dongle & Edge Bus Configuration
-              _buildSectionHeader('OBD-II Edge & Bus Telemetry', Icons.settings_input_composite_outlined, isDark),
-              const SizedBox(height: 10),
+              // 4. OBD-II Polling & Bus
+              _buildSectionTitle('OBD-II & Sensor Polling', isDark),
+              const SizedBox(height: 8),
               _buildObdBusCard(context, telemetryRate, isDark),
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
 
-              // 5. Product & Benchmark Matrices
-              _buildSectionHeader('Product & Business Ecosystem', Icons.auto_graph_outlined, isDark),
-              const SizedBox(height: 10),
-              _buildProductNavigationCard(context, isDark),
-              const SizedBox(height: 22),
+              // 5. Diagnostics & Demo Testbench
+              _buildSectionTitle('Diagnostic Testbench', isDark),
+              const SizedBox(height: 8),
+              _buildTestbenchCard(context, isDark),
+              const SizedBox(height: 20),
 
-              // 6. Judge Demo & Evaluation Testbench
-              _buildSectionHeader('Demo & Testbench Suite', Icons.science_outlined, isDark),
-              const SizedBox(height: 10),
-              _buildDemoPanelTriggerCard(context, isDark),
-              const SizedBox(height: 22),
-
-              // 7. Telemetry Data & Storage
-              _buildSectionHeader('Data Management & Cache', Icons.storage_outlined, isDark),
-              const SizedBox(height: 10),
+              // 6. Data & Cache Management
+              _buildSectionTitle('Data & Storage', isDark),
+              const SizedBox(height: 8),
               _buildDataCacheCard(context, cloudSyncWifiOnly, isDark),
-              const SizedBox(height: 26),
+              const SizedBox(height: 24),
 
-              // 8. Academic & Startup Provenance
+              // 7. Minimal Footer
               _buildFooterCredits(isDark),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -255,24 +242,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon, bool isDark) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 18,
-          color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-          ),
-        ),
-      ],
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Text(
+      title,
+      style: GoogleFonts.outfit(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+        color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+      ),
     );
   }
 
@@ -282,40 +260,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         : carId.replaceAll('_', ' ').toUpperCase();
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        border: Border.all(
-          color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.3),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isDark ? Colors.black : Colors.grey).withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                ),
-                child: Icon(
-                  Icons.directions_car_filled,
-                  color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,15 +278,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Text(
                       vehicleTitle,
                       style: GoogleFonts.outfit(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'DL 3C AP 4821 • 64,280 km • 1.2L K12M Petrol',
+                      'DL 3C AP 4821 • 64,280 km • 1.2L K12M',
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
                       ),
                     ),
@@ -341,7 +296,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTokens.statusHealthy.withOpacity(0.15),
+                  color: AppTokens.statusHealthy.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(AppTokens.radiusFull),
                 ),
                 child: Row(
@@ -357,7 +312,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      'BLE 5.0 Online',
+                      'BLE Linked',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -369,44 +324,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ],
           ),
-          const Divider(height: 24),
+          const Divider(height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildHardwareMiniSpec('Hardware Dongle', 'AutoPulse-BLE-89F2', isDark),
-              _buildHardwareMiniSpec('OBD Protocol', 'ISO 15765-4 (CAN 500k)', isDark),
-              _buildHardwareMiniSpec('Signal RSSI', '-62 dBm (Excellent)', isDark),
+              Expanded(child: _buildMiniMetric('Hardware', 'AutoPulse-BLE-89F2', isDark)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildMiniMetric('Protocol', 'ISO 15765-4 CAN', isDark)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildMiniMetric('Signal', '-58 dBm (Strong)', isDark)),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(38),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  icon: _isPinging
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.network_check, size: 16),
-                  label: Text(
-                    _pingLatencyMs != null ? 'OBD Latency: ${_pingLatencyMs}ms' : 'Ping Dongle',
-                    style: const TextStyle(fontSize: 12),
+                    minimumSize: const Size.fromHeight(36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                   onPressed: _isPinging ? null : _runPingTest,
+                  child: Text(
+                    _isPinging
+                        ? 'Testing...'
+                        : (_pingLatencyMs != null ? 'Latency: ${_pingLatencyMs}ms' : 'Ping Dongle'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(38),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: const Size.fromHeight(36),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
-                  icon: const Icon(Icons.terminal, size: 16),
-                  label: const Text('AT Self-Test', style: TextStyle(fontSize: 12)),
                   onPressed: () => _showTerminalDialog(context, isDark),
+                  child: const Text('AT Self-Test', style: TextStyle(fontSize: 12)),
                 ),
               ),
             ],
@@ -416,20 +370,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildHardwareMiniSpec(String label, String value, bool isDark) {
+  Widget _buildMiniMetric(String label, String value, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.inter(
             fontSize: 10,
-            color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+            color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.outfit(
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -448,91 +406,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       child: Column(
         children: [
-          _buildThemeRadioTile(
-            title: 'Cockpit OLED Theme',
-            subtitle: 'Deep Graphite (#0B0F17) glare-free nocturnal driving',
-            value: ThemeMode.dark,
-            groupValue: currentMode,
-            icon: Icons.dark_mode_outlined,
-            isDark: isDark,
-          ),
+          _buildThemeTile('Obsidian Dark', ThemeMode.dark, currentMode, Icons.dark_mode_outlined, isDark),
           const Divider(height: 1),
-          _buildThemeRadioTile(
-            title: 'Windshield Daylight Theme',
-            subtitle: 'Crisp Alabaster (#F8FAFC) ultra-high contrast for sun glare',
-            value: ThemeMode.light,
-            groupValue: currentMode,
-            icon: Icons.light_mode_outlined,
-            isDark: isDark,
-          ),
+          _buildThemeTile('Daylight Clean', ThemeMode.light, currentMode, Icons.light_mode_outlined, isDark),
           const Divider(height: 1),
-          _buildThemeRadioTile(
-            title: 'System Automatic',
-            subtitle: 'Synchronizes with ambient daylight & device settings',
-            value: ThemeMode.system,
-            groupValue: currentMode,
-            icon: Icons.brightness_auto_outlined,
-            isDark: isDark,
-          ),
+          _buildThemeTile('System Automatic', ThemeMode.system, currentMode, Icons.brightness_auto_outlined, isDark),
         ],
       ),
     );
   }
 
-  Widget _buildThemeRadioTile({
-    required String title,
-    required String subtitle,
-    required ThemeMode value,
-    required ThemeMode groupValue,
-    required IconData icon,
-    required bool isDark,
-  }) {
-    final isSelected = value == groupValue;
+  Widget _buildThemeTile(String label, ThemeMode mode, ThemeMode current, IconData icon, bool isDark) {
+    final isSelected = mode == current;
     return InkWell(
-      onTap: () {
-        ref.read(themeModeProvider.notifier).state = value;
-      },
+      onTap: () => ref.read(themeModeProvider.notifier).state = mode,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
         child: Row(
           children: [
             Icon(
               icon,
-              size: 20,
+              size: 18,
               color: isSelected
-                  ? (isDark ? AppTokens.darkAccent : AppTokens.lightAccent)
-                  : (isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary),
+                  ? (isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary)
+                  : (isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
-                    ),
-                  ),
-                ],
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                ),
               ),
             ),
-            Radio<ThemeMode>(
-              value: value,
-              groupValue: groupValue,
-              activeColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-              onChanged: (mode) {
-                if (mode != null) ref.read(themeModeProvider.notifier).state = mode;
-              },
-            ),
+            if (isSelected)
+              Icon(
+                Icons.check,
+                size: 16,
+                color: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+              ),
           ],
         ),
       ),
@@ -546,45 +460,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     bool isDark,
   ) {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
+          Text(
+            'Telemetry Unit System',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildChoicePill(
+                  label: 'Metric (°C, km/h)',
+                  isSelected: unitSystem == UnitSystem.metric,
+                  onTap: () => ref.read(unitSystemProvider.notifier).state = UnitSystem.metric,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildChoicePill(
+                  label: 'Imperial (°F, mph)',
+                  isSelected: unitSystem == UnitSystem.imperial,
+                  onTap: () => ref.read(unitSystemProvider.notifier).state = UnitSystem.imperial,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Telemetry Unit System', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14)),
-                    Text('Speed, temperature & pressure scales', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
+                    Text('Keep Screen Awake', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Prevent screen timeout during live telemetry', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted)),
                   ],
                 ),
-                SegmentedButton<UnitSystem>(
-                  segments: const [
-                    ButtonSegment(value: UnitSystem.metric, label: Text('Metric (°C, km/h)', style: TextStyle(fontSize: 11))),
-                    ButtonSegment(value: UnitSystem.imperial, label: Text('Imperial (°F, mph)', style: TextStyle(fontSize: 11))),
-                  ],
-                  selected: {unitSystem},
-                  onSelectionChanged: (set) {
-                    ref.read(unitSystemProvider.notifier).state = set.first;
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: Text('Keep Screen Awake While Driving', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('Prevents lock screen timeout during real-time telemetry streaming', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-            value: screenAwake,
-            activeColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-            onChanged: (val) => ref.read(screenAwakeProvider.notifier).state = val,
+              ),
+              Switch(
+                value: screenAwake,
+                onChanged: (val) => ref.read(screenAwakeProvider.notifier).state = val,
+              ),
+            ],
           ),
         ],
       ),
@@ -601,6 +529,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required bool isDark,
   }) {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
@@ -609,150 +538,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'AI Failure Sensitivity Level',
-                      style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                      ),
-                      child: Text(
-                        aiSensitivity.name.toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                        ),
-                      ),
-                    ),
-                  ],
+          Text('Failure Sensitivity Threshold', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildChoicePill(
+                  label: 'Conservative',
+                  isSelected: aiSensitivity == AiSensitivity.conservative,
+                  onTap: () => ref.read(aiSensitivityProvider.notifier).state = AiSensitivity.conservative,
+                  isDark: isDark,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Tunes Ordinary Least Squares (OLS) slope confidence threshold and anomaly noise filtering.',
-                  style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildChoicePill(
+                  label: 'Balanced',
+                  isSelected: aiSensitivity == AiSensitivity.balanced,
+                  onTap: () => ref.read(aiSensitivityProvider.notifier).state = AiSensitivity.balanced,
+                  isDark: isDark,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: AiSensitivity.values.map((s) {
-                    final isSel = s == aiSensitivity;
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3.0),
-                        child: ChoiceChip(
-                          label: Center(
-                            child: Text(
-                              s == AiSensitivity.conservative
-                                  ? 'Conservative'
-                                  : s == AiSensitivity.balanced
-                                      ? 'Balanced'
-                                      : 'Proactive',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
-                                color: isSel
-                                    ? (isDark ? AppTokens.darkBackground : Colors.white)
-                                    : (isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary),
-                              ),
-                            ),
-                          ),
-                          selected: isSel,
-                          selectedColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-                          onSelected: (_) => ref.read(aiSensitivityProvider.notifier).state = s,
-                        ),
-                      ),
-                    );
-                  }).toList(),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildChoicePill(
+                  label: 'Proactive',
+                  isSelected: aiSensitivity == AiSensitivity.proactive,
+                  onTap: () => ref.read(aiSensitivityProvider.notifier).state = AiSensitivity.proactive,
+                  isDark: isDark,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Forecast Risk Horizon Window', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14)),
-                    Text('Maximum advance projection horizon', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-                  ],
+          const Divider(height: 20),
+          Text('Forecast Horizon Window', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 8),
+          Row(
+            children: [7, 14, 30].map((days) {
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                  child: _buildChoicePill(
+                    label: '$days Days',
+                    isSelected: horizonDays == days,
+                    onTap: () => ref.read(predictionHorizonProvider.notifier).state = days,
+                    isDark: isDark,
+                  ),
                 ),
-                Row(
-                  children: [7, 14, 30].map((days) {
-                    final isSel = days == horizonDays;
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 6.0),
-                      child: InkWell(
-                        onTap: () => ref.read(predictionHorizonProvider.notifier).state = days,
-                        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isSel
-                                ? (isDark ? AppTokens.darkAccent : AppTokens.lightAccent)
-                                : (isDark ? AppTokens.darkSurfaceElevated : AppTokens.lightSurfaceElevated),
-                            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                            border: Border.all(
-                              color: isSel
-                                  ? Colors.transparent
-                                  : (isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
-                            ),
-                          ),
-                          child: Text(
-                            '$days Days',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: isSel
-                                  ? (isDark ? AppTokens.darkBackground : Colors.white)
-                                  : (isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
+              );
+            }).toList(),
           ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: Text('Cold Start Cranking Sag Watchdog', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('Alert immediately when morning ignition transient drops below 10.2V', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
+          const Divider(height: 20),
+          _buildToggleRow(
+            title: 'Cold Crank Sag Watchdog',
+            subtitle: 'Alert when morning crank transient dips below 10.2V',
             value: coldStart,
-            activeColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
             onChanged: (val) => ref.read(coldStartWatchdogProvider.notifier).state = val,
+            isDark: isDark,
           ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: Text('Thermal Dissipation Gradient Alert', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('Monitors rate of coolant temp rise under city stop-and-go idle', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
+          const Divider(height: 14),
+          _buildToggleRow(
+            title: 'Thermal Gradient Watchdog',
+            subtitle: 'Detect abnormal coolant temperature rise in traffic',
             value: thermal,
-            activeColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
             onChanged: (val) => ref.read(thermalWatchdogProvider.notifier).state = val,
+            isDark: isDark,
           ),
-          const Divider(height: 1),
-          SwitchListTile(
-            title: Text('Emissions & Lambda Drift Watchdog', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('Tracks combined STFT + LTFT fuel trims exceeding ±10%', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
+          const Divider(height: 14),
+          _buildToggleRow(
+            title: 'Fuel Trim Lambda Drift',
+            subtitle: 'Notify on persistent STFT + LTFT fuel trim deviation > 10%',
             value: emissions,
-            activeColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
             onChanged: (val) => ref.read(emissionsWatchdogProvider.notifier).state = val,
+            isDark: isDark,
           ),
         ],
       ),
@@ -761,129 +619,129 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildObdBusCard(BuildContext context, double rate, bool isDark) {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
+          Text('OBD-II Polling Frequency', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildChoicePill(
+                  label: '1.0 Hz (Live)',
+                  isSelected: rate == 1.0,
+                  onTap: () => ref.read(telemetryRateProvider.notifier).state = 1.0,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildChoicePill(
+                  label: '0.5 Hz (Std)',
+                  isSelected: rate == 0.5,
+                  onTap: () => ref.read(telemetryRateProvider.notifier).state = 0.5,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildChoicePill(
+                  label: '0.1 Hz (Eco)',
+                  isSelected: rate == 0.1,
+                  onTap: () => ref.read(telemetryRateProvider.notifier).state = 0.1,
+                  isDark: isDark,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Telemetry Polling Rate', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14)),
-                    Text('OBD-II PID query frequency via BLE 5.0', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
+                    Text('Reset Bus Cache', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Forces fresh ISO protocol negotiation with dongle', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted)),
                   ],
                 ),
-                SegmentedButton<double>(
-                  segments: const [
-                    ButtonSegment(value: 1.0, label: Text('1.0 Hz (Live)', style: TextStyle(fontSize: 11))),
-                    ButtonSegment(value: 0.5, label: Text('0.5 Hz (Std)', style: TextStyle(fontSize: 11))),
-                    ButtonSegment(value: 0.1, label: Text('0.1 Hz (Eco)', style: TextStyle(fontSize: 11))),
-                  ],
-                  selected: {rate},
-                  onSelectionChanged: (set) {
-                    ref.read(telemetryRateProvider.notifier).state = set.first;
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.refresh_rounded),
-            title: Text('Reset OBD-II Adapter Bus Cache', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('Clears volatile PID buffer and forces full ISO protocol re-negotiation', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-            trailing: OutlinedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('OBD-II adapter bus cache cleared and re-synced.', style: GoogleFonts.inter()),
-                    backgroundColor: AppTokens.statusHealthy,
-                  ),
-                );
-              },
-              child: const Text('Reset', style: TextStyle(fontSize: 12)),
-            ),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('OBD-II bus cache cleared.', style: GoogleFonts.inter()),
+                      backgroundColor: AppTokens.statusHealthy,
+                    ),
+                  );
+                },
+                child: const Text('Reset', style: TextStyle(fontSize: 12)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProductNavigationCard(BuildContext context, bool isDark) {
+  Widget _buildTestbenchCard(BuildContext context, bool isDark) {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ListTile(
-            leading: const Icon(Icons.compare_arrows),
-            title: Text('Why AutoPulse (Pitch Matrix)', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14)),
-            subtitle: Text('Amazon OBD scanner vs AutoPulse vs Dealership scan tools', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.go('/comparison'),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Demo Scenario Control', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text('Inject simulated faults and test real-time alerts', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted)),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(minimumSize: const Size(70, 34)),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const DemoPanelDialog(),
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            ],
           ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.card_membership_outlined),
-            title: Text('Hardware & SaaS Membership (₹999 + ₹999/yr)', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14)),
-            subtitle: Text('Pricing tiers, annual AI license & hardware warranty', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.go('/plans'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.bluetooth_searching),
-            title: Text('Pair New Dongle Adapter', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14)),
-            subtitle: Text('Scan and connect another AutoPulse BLE smart scanner', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.go('/pair'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDemoPanelTriggerCard(BuildContext context, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.08),
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.tune, color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent, size: 28),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Judge Demo Control Testbench', style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15)),
-                Text('Inject simulated faults, swap test vehicles, and fast-forward 30-day wear horizons.', style: GoogleFonts.inter(fontSize: 12, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(minimumSize: const Size(88, 38)),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => const DemoPanelDialog(),
-              );
-            },
-            child: const Text('Open'),
+          const Divider(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => context.go('/comparison'),
+                  child: const Text('Market Matrix', style: TextStyle(fontSize: 11)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => context.go('/plans'),
+                  child: const Text('Pricing & SaaS', style: TextStyle(fontSize: 11)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -892,62 +750,139 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildDataCacheCard(BuildContext context, bool wifiOnly, bool isDark) {
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         border: Border.all(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ListTile(
-            leading: const Icon(Icons.cloud_sync_outlined),
-            title: Text('Sync Telemetry Cloud Buffer', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
-            subtitle: Text('14.8 MB local buffer • 4,820 packets recorded', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary)),
-            trailing: Switch(
-              value: wifiOnly,
-              activeColor: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-              onChanged: (val) => ref.read(cloudSyncWifiOnlyProvider.notifier).state = val,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Sync on Wi-Fi Only', style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Save mobile data when uploading raw telemetry', style: GoogleFonts.inter(fontSize: 11, color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted)),
+                  ],
+                ),
+              ),
+              Switch(
+                value: wifiOnly,
+                onChanged: (val) => ref.read(cloudSyncWifiOnlyProvider.notifier).state = val,
+              ),
+            ],
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.file_download_outlined, size: 16),
-                    label: const Text('Export CSV Telemetry', style: TextStyle(fontSize: 11)),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Exported 4,820 telemetry rows to /Download/AutoPulse_Telemetry.csv', style: GoogleFonts.inter()),
-                          backgroundColor: AppTokens.statusHealthy,
-                        ),
-                      );
-                    },
-                  ),
+          const Divider(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Exported 4,820 packets to /Downloads', style: GoogleFonts.inter()),
+                        backgroundColor: AppTokens.statusHealthy,
+                      ),
+                    );
+                  },
+                  child: const Text('Export CSV', style: TextStyle(fontSize: 11)),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('Purge Cache', style: TextStyle(fontSize: 11)),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Diagnostic cache cleared.', style: GoogleFonts.inter()),
-                          backgroundColor: AppTokens.statusHealthy,
-                        ),
-                      );
-                    },
-                  ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Diagnostic cache cleared.', style: GoogleFonts.inter()),
+                        backgroundColor: AppTokens.statusHealthy,
+                      ),
+                    );
+                  },
+                  child: const Text('Purge Cache', style: TextStyle(fontSize: 11)),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildChoicePill({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFF222834) : const Color(0xFFE2E8F0))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          border: Border.all(
+            color: isSelected
+                ? (isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary)
+                : (isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
+            width: isSelected ? 1.2 : 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected
+                ? (isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary)
+                : (isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleRow({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required bool isDark,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 
@@ -955,36 +890,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Center(
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: (isDark ? AppTokens.darkAccent : AppTokens.lightAccent).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-            ),
-            child: Text(
-              'v1.2.0 • UI/UX PRO MAX EDITION',
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent,
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
           Text(
-            'AutoPulse AI Smart Mobility Platform',
-            style: GoogleFonts.outfit(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'NIMS University Smart Mobility & Automotive AI Lab',
+            'AUTOPULSE v1.2.0 • OBD-II AI MOBILITY',
             style: GoogleFonts.inter(
-              fontSize: 11,
-              color: isDark ? AppTokens.darkTextSecondary : AppTokens.lightTextSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'NIMS University Smart Mobility & AI Lab',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
             ),
           ),
         ],

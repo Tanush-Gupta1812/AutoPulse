@@ -12,7 +12,7 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('AutoPulseApp renders successfully with ProviderScope', (WidgetTester tester) async {
+  testWidgets('AutoPulseApp renders successfully and navigates to Settings', (WidgetTester tester) async {
     // Provide a standard phone viewport (390 x 844 pt)
     tester.view.physicalSize = const Size(780, 1688);
     tester.view.devicePixelRatio = 2.0;
@@ -28,9 +28,17 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify brand title renders
-    expect(find.text('AutoPulse'), findsOneWidget);
-    // Verify OBD-II Status indicator
-    expect(find.text('OBD-II Online'), findsOneWidget);
+    expect(find.text('AUTOPULSE'), findsOneWidget);
+    // Verify live BLE status indicator
+    expect(find.text('BLE 5.0 LIVE'), findsOneWidget);
+
+    // Verify navigation to Settings tab
+    final settingsTab = find.text('Settings');
+    expect(settingsTab, findsOneWidget);
+    await tester.tap(settingsTab);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Settings & Diagnostics'), findsOneWidget);
   });
 
   test('AutoPulse Theme Tokens have correct WCAG AA status colors', () {

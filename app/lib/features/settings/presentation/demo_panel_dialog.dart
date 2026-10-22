@@ -76,8 +76,8 @@ class _DemoPanelDialogState extends ConsumerState<DemoPanelDialog> {
     return AlertDialog(
       backgroundColor: isDark ? AppTokens.darkSurfaceElevated : AppTokens.lightSurfaceElevated,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        side: BorderSide(color: isDark ? AppTokens.darkAccent : AppTokens.lightAccent),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        side: BorderSide(color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder),
       ),
       title: Row(
         children: [

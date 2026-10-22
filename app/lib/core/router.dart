@@ -10,6 +10,7 @@ import 'package:app/features/plans/presentation/plans_screen.dart';
 import 'package:app/features/comparison/presentation/comparison_screen.dart';
 import 'package:app/features/fleet/presentation/fleet_screen.dart';
 import 'package:app/features/settings/presentation/settings_screen.dart';
+import 'package:app/theme/app_tokens.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -114,40 +115,62 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final selectedIndex = _calculateSelectedIndex(context);
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: (index) => _onItemTapped(index, context),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_outline),
-            activeIcon: Icon(Icons.favorite),
-            label: 'Health',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppTokens.darkSurface : AppTokens.lightSurface,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? AppTokens.darkBorder : AppTokens.lightBorder,
+              width: 1.0,
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.speed_outlined),
-            activeIcon: Icon(Icons.speed),
-            label: 'Live OBD',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_none),
-            activeIcon: Icon(Icons.notifications),
-            label: 'Alerts',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.local_shipping_outlined),
-            activeIcon: Icon(Icons.local_shipping),
-            label: 'Fleet',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: selectedIndex,
+          onTap: (index) => _onItemTapped(index, context),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          selectedFontSize: 11,
+          unselectedFontSize: 11,
+          selectedItemColor: isDark ? AppTokens.darkTextPrimary : AppTokens.lightTextPrimary,
+          unselectedItemColor: isDark ? AppTokens.darkTextMuted : AppTokens.lightTextMuted,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shield_outlined, size: 20),
+              activeIcon: Icon(Icons.shield, size: 20),
+              label: 'Overview',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.show_chart_rounded, size: 20),
+              activeIcon: Icon(Icons.show_chart_rounded, size: 20),
+              label: 'Telemetry',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.notifications_none_rounded, size: 20),
+              activeIcon: Icon(Icons.notifications_rounded, size: 20),
+              label: 'Alerts',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.directions_car_outlined, size: 20),
+              activeIcon: Icon(Icons.directions_car_filled_rounded, size: 20),
+              label: 'Fleet',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.tune_rounded, size: 20),
+              activeIcon: Icon(Icons.tune_rounded, size: 20),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }
